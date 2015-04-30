@@ -1,0 +1,14 @@
+DCMS : distributed crontab management system
+
+DCMS has two parts:
+
+one for crontab by every machine
+
+one for distributed jobs stateless
+
+crontab集中管理平台和分布式任务调度平台
+
+在固定机器上执行的是crontab
+无状态的计算,不依赖机器的任务是jobs
+
+
