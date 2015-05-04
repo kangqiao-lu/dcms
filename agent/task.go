@@ -2,11 +2,6 @@ package agent
 
 import (
 	"fmt"
-	// "io/ioutil"
-	// "cmd"
-	// "bufio"
-	// "bytes"
-	// "io"
 	"os"
 	"os/exec"
 	"os/user"
@@ -155,8 +150,8 @@ func (t *Task) Exec(agent *Agent) {
 	// cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uid, Gid: gid}
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid)}
-	cmd.SysProcAttr.Pdeathsig = syscall.SIGUSR1
-	// cmd.SysProcAttr.Pdeathsig
+	// cmd.SysProcAttr.Pdeathsig = syscall.SIGUSR1
+	cmd.SysProcAttr.Setsid = true
 	// cmd.SysProcAttr.Noctty = true
 
 	// w := bufio.NewWriter(t.logfile)
