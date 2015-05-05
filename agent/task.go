@@ -150,7 +150,7 @@ func (t *Task) Exec(agent *Agent) {
 	// cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uid, Gid: gid}
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid)}
-	// cmd.SysProcAttr.Pdeathsig = syscall.SIGUSR1
+	cmd.SysProcAttr.Pdeathsig = syscall.SIGUSR1
 	cmd.SysProcAttr.Setsid = true
 	// cmd.SysProcAttr.Noctty = true
 
@@ -216,6 +216,11 @@ func (t *Task) Exec(agent *Agent) {
 }
 
 func (t *Task) genLogFile() {
+	defer func() {
+		if e := recover(); e != nil {
+			log.Warning("genLogFile fatal:", e)
+		}
+	}()
 	d := time.Now().Format("20060102")
 	filename := fmt.Sprintf("%s/DCMS-%s/%d-%s-%s.log",
 		t.Job.Dcms.Conf.WorkDir,

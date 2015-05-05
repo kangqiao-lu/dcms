@@ -1,15 +1,16 @@
 package agent
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
-	// "os/signal"
 	"sync"
-	"time"
-	// "strings"
 	"syscall"
+	"time"
 
+	// sjson "github.com/bitly/go-simplejson"
 	"github.com/dongzerun/dcms/util"
 	log "github.com/ngaut/logging"
 )
@@ -56,6 +57,7 @@ func NewAgent(cfg *AgentConf) *Agent {
 	return agent
 }
 
+// when agent start, GenJobs() will be called once
 func (agent *Agent) GenJobs() {
 	agent.Lock.Lock()
 	defer agent.Lock.Unlock()
@@ -64,8 +66,8 @@ func (agent *Agent) GenJobs() {
 	if err != nil {
 		log.Warningf("get CronJob error: %s ", err)
 		log.Warning("we will load cronjob metadata from localhost")
-		//todo:
-		//load cronjob file in local host
+		agent.LoadCronMetaData()
+		return
 	}
 	for _, cj := range cjs {
 		if !cj.IsValid() {
@@ -129,6 +131,73 @@ func (agent *Agent) TestGenJobs() {
 	log.Info(job2)
 	if job2.IsValid() {
 		agent.Jobs[job2.Id] = job2
+	}
+}
+
+// we will Save Cron MetaData periodically, currently for 5min
+func (agent *Agent) SaveCronMetaData() {
+	meta_file := fmt.Sprintf("%s/dcms_agent.metadata", agent.Conf.WorkDir)
+	cronSlice := make([]string, 0)
+
+	agent.Lock.Lock()
+	defer agent.Lock.Unlock()
+	for k, v := range agent.Jobs {
+		if data, err := json.Marshal(v); err == nil {
+			cronSlice = append(cronSlice, string(data))
+		} else {
+			log.Warningf("marshal task: %d failed: %s", k, err)
+			return
+		}
+	}
+
+	if data, err := json.Marshal(cronSlice); err != nil {
+		log.Warning("json marshal cronslice failed, ", err)
+	} else {
+		if len(cronSlice) == 0 {
+			log.Warning("cronSlice json empty, just skip write MetaData")
+			return
+		}
+		log.Debug("len of cronSlice:", len(data), data)
+		log.Debugf("cronSlice length:%d content:%s", len(cronSlice), cronSlice)
+		if e := ioutil.WriteFile(meta_file, data, os.ModePerm); e != nil {
+			log.Warning("ioutil write meta_file failed,", e)
+		}
+	}
+}
+
+// LoadCronMetaData will only be called in GenJobs Function
+// when store unavilable , and must be called once, so we needn't get Lock
+func (agent *Agent) LoadCronMetaData() {
+	cronSlice := make([]string, 0)
+	meta_file := fmt.Sprintf("%s/dcms_agent.metadata", agent.Conf.WorkDir)
+	f, err := os.Open(meta_file)
+	if err != nil {
+		log.Warningf("reading metadata file: %s failed %s", meta_file, err)
+		return
+	}
+	if data, err := ioutil.ReadAll(f); err != nil {
+		log.Warningf("ioutil metadata file read all failed %s", err)
+	} else {
+		if err = json.Unmarshal(data, &cronSlice); err != nil {
+			log.Warningf("json unmarshal meta data failed: %s", string(data))
+			return
+		}
+		for _, v := range cronSlice {
+			log.Debug("receive cron from metadata file:", v)
+			var cj *CronJob
+			if err = json.Unmarshal([]byte(v), &cj); err != nil {
+				log.Warningf("json unmarshal failed for:", v)
+				continue
+			}
+			if !cj.IsValid() {
+				continue
+			}
+			cj.Dcms = agent
+			agent.Jobs[cj.Id] = cj
+		}
+		for id, job := range agent.Jobs {
+			log.Debug("now Agent has jobs:", id, job)
+		}
 	}
 }
 
@@ -417,6 +486,26 @@ quit:
 	log.Warning("receive StatusLoopQuitChan chan, quit HandleStatusLoop")
 }
 
+func (agent *Agent) SaveCronDataLoop() {
+	// defer func() {
+	// 	if e := recover(); e != nil {
+	// 		go SaveCronDataLoop()
+	// 	}
+	// }()
+
+	ticker := time.NewTicker(30 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			agent.SaveCronMetaData()
+		case <-agent.QuitChan:
+			goto quit
+		}
+	}
+quit:
+	log.Warning("receive QuitChan chan, quit SaveCronDataLoop")
+}
+
 func (agent *Agent) Run() {
 	log.Debug("agent start run .....", agent.Conf)
 	// agent.TestGenJobs()
@@ -425,6 +514,7 @@ func (agent *Agent) Run() {
 	go agent.HandleStatusLoop()
 	go agent.CheckTimeoutLoop()
 	go agent.CheckCronJobChangeLoop()
+	go agent.SaveCronDataLoop()
 	go func() {
 		http.ListenAndServe(":9091", nil)
 	}()

@@ -18,11 +18,13 @@ var (
 	port      = flag.String("port", "8001", "management port by http protocol")
 	work_dir  = flag.String("work_dir", "/tmp", "work dir, used to save log file etc..")
 	quit_time = flag.Int64("quit_time", 3600, "when agent recevie, we wait quit_time sec for all TASK FINISHED")
+	verbose   = flag.String("verbose", "info", "log verbose:info, debug, warning, fatal")
 )
 
 func main() {
 	flag.Parse()
 	log.Info("flag parse: ", *db, *port)
+	LogVerbose(*verbose)
 
 	cfg := &agent.AgentConf{
 		DBtype:   *dbtype,
@@ -49,4 +51,17 @@ func main() {
 	log.Warning("main receive quit signal...")
 	close(quit)
 
+}
+
+func LogVerbose(v string) {
+	switch v {
+	case "info":
+		log.SetLevelByString("info")
+	case "debug":
+		log.SetLevelByString("debug")
+	case "warning":
+		log.SetLevelByString("warning")
+	case "fatal":
+		log.SetLevelByString("fatal")
+	}
 }
