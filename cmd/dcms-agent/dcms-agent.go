@@ -4,9 +4,8 @@ import (
 	"flag"
 	"os"
 	"os/signal"
-	// "strings"
+	"runtime"
 	"syscall"
-	// "time"
 
 	"github.com/dongzerun/dcms/agent"
 	log "github.com/ngaut/logging"
@@ -24,6 +23,7 @@ var (
 func main() {
 	flag.Parse()
 	log.Info("flag parse: ", *db, *port)
+	runtime.GOMAXPROCS(runtime.NumCPU() * 2)
 	LogVerbose(*verbose)
 
 	cfg := &agent.AgentConf{
@@ -50,7 +50,7 @@ func main() {
 	<-sc
 	log.Warning("main receive quit signal...")
 	close(quit)
-
+	agent.Clean()
 }
 
 func LogVerbose(v string) {

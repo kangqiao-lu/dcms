@@ -244,7 +244,7 @@ func (agent *Agent) CheckReady() {
 			continue
 		}
 
-		if !job.NeedSchedule() {
+		if !job.NeedSchedule() || !job.IsValid() {
 			continue
 		}
 
@@ -265,10 +265,10 @@ func (agent *Agent) CheckReady() {
 func (agent *Agent) KillTask(t *Task) {
 	p, ok := agent.Process[t.TaskId]
 	if !ok {
-		log.Warningf("when %s timeout, can't find process in agent.Process", t.TaskId)
+		log.Warningf("In KillTask  %s, can't find process in agent.Process", t.TaskId)
 	} else {
 		pid := p.Pid
-		log.Warning("timeout pid is: we try to kill", pid)
+		log.Warning("KillTask pid is: we try to kill", pid)
 		if err := p.Kill(); err != nil {
 			// double check
 			log.Warningf("kill err %s, we try again ", err)
@@ -368,7 +368,7 @@ func (agent *Agent) CompareAndChange(cjs []*CronJob) {
 	for _, newcj := range cjs {
 		if oldcj, ok := agent.Jobs[newcj.Id]; ok {
 			//find job , compare CreateAt
-			if newcj.CreateAt != oldcj.CreateAt {
+			if newcj.CreateAt > oldcj.CreateAt {
 				log.Warning("cron job changed for id: ", newcj.Id)
 				oldcj.Name = newcj.Name
 				oldcj.CreateUser = newcj.CreateUser
@@ -381,6 +381,9 @@ func (agent *Agent) CompareAndChange(cjs []*CronJob) {
 				oldcj.Schedule = newcj.Schedule
 				oldcj.WebHookUrl = newcj.WebHookUrl
 				oldcj.MsgFilter = newcj.MsgFilter
+			} else if newcj.CreateAt < oldcj.CreateAt {
+				// Alert email ,maybe phone
+				log.Warningf("Agent's Jobs:%d CreateAt greate than Store's Jobs:%d, we don't expect this.", oldcj.CreateAt, newcj.CreateAt)
 			}
 
 		} else {
@@ -535,7 +538,7 @@ func (agent *Agent) Clean() {
 		for task, _ := range agent.Process {
 			log.Warningf("%s ", task)
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 		l = len(agent.Process)
 		if now := time.Now().Unix(); now-start_quit > agent.Conf.QuitTime {
 			log.Warning("quit_time timeout, we will kill subprocess by SIGUSR1")
@@ -550,7 +553,7 @@ func (agent *Agent) Clean() {
 
 	}
 quit:
-	time.Sleep(10 * time.Second)
+	time.Sleep(2 * time.Second)
 	close(agent.StatusLoopQuitChan)
 	log.Warning("all process DONE, we quit success.")
 }

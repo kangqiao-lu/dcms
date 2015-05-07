@@ -33,14 +33,14 @@ type TaskStatus struct {
 }
 
 type Task struct {
-	JobId        int64  `json:"job_id"`
-	TaskId       string `json:"task_id"`
-	Status       int    `json:"status"`
-	ExecAt       int64  `json:"exec_at"`
-	ExecDuration int64  `json:"exec_duration"`
-	LogFilename  string `json:"log_filename"`
-	Job          *CronJob
-	logfile      *os.File
+	JobId        int64    `json:"job_id"`
+	TaskId       string   `json:"task_id"`
+	Status       int      `json:"status"`
+	ExecAt       int64    `json:"exec_at"`
+	ExecDuration int64    `json:"exec_duration"`
+	LogFilename  string   `json:"log_filename"`
+	Job          *CronJob `json:"-"`
+	logfile      *os.File `json:"-"`
 }
 
 func (t *Task) IsTimeout() bool {
