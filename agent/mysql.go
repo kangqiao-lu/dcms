@@ -17,6 +17,11 @@ type MySQLStore struct {
 }
 
 func (m *MySQLStore) GetMyJobs() ([]*CronJob, error) {
+	defer func() {
+		if e := recover(); e != nil {
+			log.Warning("GetMyJobs  fatal:", e)
+		}
+	}()
 	var host string
 	cj := make([]*CronJob, 0)
 	db, err := sql.Open("mysql", m.DSN)

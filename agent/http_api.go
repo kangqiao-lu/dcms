@@ -17,6 +17,9 @@ type Server struct {
 	DCMS *Agent
 }
 
+//  "/pre/getsecbyid?sec=xxxx&preid=xxxx"
+// "/pre/:preid/sec/:secid"
+// "/sec/:secid?pre=preid"
 func (s *Server) Serve() {
 	log.Info("start Server http api")
 	m := martini.Classic()
@@ -44,28 +47,17 @@ func (s *Server) GetJobById(p martini.Params) (int, string) {
 		return responseError(500, fmt.Sprintf("convert string:%s to int failed", jobid))
 	}
 	if job, ok := s.DCMS.Jobs[int64(id)]; ok {
-		data, err := json.Marshal(job)
-		if err != nil {
-			log.Warning("GetAllJobs marshal job err, ", err)
-		} else {
-			return responseSuccess(string(data))
-		}
+		return responseSuccess(job)
 	}
 	return responseError(404, fmt.Sprintf("Job:%s not fuound", jobid))
 }
 
 func (s *Server) GetAllJobs() (int, string) {
 	log.Debug("Server dcms http_api GetAllJobs")
-	cronSlice := make([]string, 0)
+	cronSlice := make([]*CronJob, 0)
 	for _, job := range s.DCMS.Jobs {
-		data, err := json.Marshal(job)
-		if err != nil {
-			log.Warning("GetAllJobs marshal job err, ", err)
-			continue
-		}
-		cronSlice = append(cronSlice, string(data))
+		cronSlice = append(cronSlice, job)
 	}
-	// responseJson(200, cronSlice)
 	return responseSuccess(cronSlice)
 }
 
@@ -95,14 +87,9 @@ func (s *Server) DeleteJobById(p martini.Params) (int, string) {
 }
 func (s *Server) GetAllTasks() (int, string) {
 	log.Debug("Server dcms http_api GetAllTasks")
-	taskSlice := make([]string, 0)
+	taskSlice := make([]*Task, 0)
 	for _, task := range s.DCMS.Running {
-		data, err := json.Marshal(task)
-		if err != nil {
-			log.Warning("GetAllTasks marshal job err, ", err)
-			continue
-		}
-		taskSlice = append(taskSlice, string(data))
+		taskSlice = append(taskSlice, task)
 	}
 	return responseSuccess(taskSlice)
 }
@@ -116,12 +103,7 @@ func (s *Server) GetTaskById(p martini.Params) (int, string) {
 		if task.TaskId != taskid {
 			continue
 		}
-		data, err := json.Marshal(task)
-		if err != nil {
-			log.Warning("GetAllJobs marshal job err, ", err)
-		} else {
-			return responseSuccess(string(data))
-		}
+		return responseSuccess(task)
 	}
 	return responseError(404, fmt.Sprintf("Task:%s not fuound", taskid))
 }
@@ -150,7 +132,7 @@ func (s *Server) DeleteTaskById(p martini.Params) (int, string) {
 			s.DCMS.KillTask(task)
 			return
 		}
-		log.Warningf("Delete Task By Id:%s not exists", taskid)
+		log.Warningf("Delete Task By Id:%s not exists or may be done", taskid)
 	}(taskid)
 
 	return responseSuccess(fmt.Sprintf("Task:%s will be killed async, or may be done normal", taskid))

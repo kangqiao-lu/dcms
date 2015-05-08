@@ -145,22 +145,12 @@ func (t *Task) Exec(agent *Agent) {
 		return
 	}
 
-	// 	cmd := exec.Command(command, args...)
-	// cmd.SysProcAttr = &syscall.SysProcAttr{}
-	// cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uid, Gid: gid}
 	cmd.SysProcAttr = &syscall.SysProcAttr{}
 	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid)}
-	cmd.SysProcAttr.Pdeathsig = syscall.SIGUSR1
 	cmd.SysProcAttr.Setsid = true
-	// cmd.SysProcAttr.Noctty = true
+	// Pdeathsig only valid on linux system
+	cmd.SysProcAttr.Pdeathsig = syscall.SIGUSR1
 
-	// w := bufio.NewWriter(t.logfile)
-	// if cmd.Stderr, err = w.(io.Writer); err != nil {
-	// 	cmd.Stderr = nil
-	// 	cmd.Stdout = nil
-	// } else {
-	// 	cmd.Stdout = cmd.Stderr
-	// }
 	cmd.Stderr = t.logfile
 	cmd.Stdout = t.logfile
 
