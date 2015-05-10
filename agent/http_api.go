@@ -27,6 +27,8 @@ func (s *Server) Serve() {
 	m.Get("/jobs", s.GetAllJobs)
 	m.Get("/jobs/:jobid", s.GetJobById)
 	m.Delete("/jobs/:jobid", s.DeleteJobById)
+	m.Put("/jobs/:jobid", s.UpdateJobById)
+
 	m.Get("/tasks", s.GetAllTasks)
 	m.Get("/tasks/:taskid", s.GetTaskById)
 	m.Delete("/tasks/:taskid", s.DeleteTaskById)
@@ -50,6 +52,22 @@ func (s *Server) GetJobById(p martini.Params) (int, string) {
 		return responseSuccess(job)
 	}
 	return responseError(404, fmt.Sprintf("Job:%s not fuound", jobid))
+}
+
+func (s *Server) UpdateJobById(p martini.Params) (int, string) {
+	log.Debug("Server dcms http_api GetJobById")
+	jobid, ok := p["jobid"]
+	if !ok {
+		return responseError(500, "UpdateJobById without jobid")
+	}
+	id, err := strconv.Atoi(jobid)
+	if err != nil {
+		return responseError(500, fmt.Sprintf("convert string:%s to int failed", jobid))
+	}
+
+	go s.DCMS.UpdateSingleJobById(int64(id))
+
+	return responseSuccess(fmt.Sprintf("Job:%s will be updated async", jobid))
 }
 
 func (s *Server) GetAllJobs() (int, string) {

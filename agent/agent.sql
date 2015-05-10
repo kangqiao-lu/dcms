@@ -12,7 +12,7 @@ CREATE TABLE `dcms_cronjob` (
   `disabled` int(11) NOT NULL DEFAULT '0' COMMENT '当前job是否禁掉',
   `schedule` varchar(100) NOT NULL DEFAULT '* * */1 * *' COMMENT 'crontabl format',
   `hook` varchar(1000) NOT NULL DEFAULT '' COMMENT '任务执行后无论成功与否都会post数据到该webhook',
-  `msg_filter` varchar(1000) NOT NULL DEFAULT '' COMMENT '任务输出,捕获filter关键词,以逗号分隔,如error,failed,critical',
+  `msg_filter` varchar(1000) NOT NULL DEFAULT '' COMMENT '任务输出,捕获filter关键词,以|分隔,如fatal|error|fail|failed',
   `create_at` int(11) NOT NULL DEFAULT '0' COMMENT 'job创建修改时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
@@ -27,14 +27,17 @@ CREATE TABLE `dcms_agent2job` (
   UNIQUE KEY `host` (`host`,`job_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8 COMMENT='agent订阅cronjob表';
 
+
 CREATE TABLE `dcms_crontask_log` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'increment id',
   `job_id` bigint(20) NOT NULL DEFAULT '0' COMMENT 'cron job id',
   `task_id` varchar(100) NOT NULL DEFAULT '' COMMENT 'task id 字符串',
+  `host` varchar(100) NOT NULL DEFAULT '' COMMENT '当前task执行所在机器主机名',
   `status` int(11) NOT NULL DEFAULT '0' COMMENT '0 ready,1 running, 2 success, 3 failed, 4 timeout, 5 killed',
   `exec_at` int(11) NOT NULL DEFAULT '0' COMMENT '任务开时执行时间戳',
   `exec_duration` int(11) NOT NULL DEFAULT '0' COMMENT '执行时长，单位秒',
   `log_filename` varchar(200) NOT NULL DEFAULT '' COMMENT 'agent宿主机日志全路径',
+  `message` text COMMENT '部分输出信息,或错误日志',
   PRIMARY KEY (`id`),
   KEY `job_id` (`job_id`),
   KEY `task_id` (`task_id`)

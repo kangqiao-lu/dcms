@@ -30,6 +30,7 @@ type TaskStatus struct {
 	Status   int
 	CreateAt int64 // status create unix timestamp
 	Err      error
+	Message  string //output message, we will concat Error and Message to store
 }
 
 type Task struct {
@@ -149,7 +150,8 @@ func (t *Task) Exec(agent *Agent) {
 	cmd.SysProcAttr.Credential = &syscall.Credential{Uid: uint32(uid)}
 	cmd.SysProcAttr.Setsid = true
 	// Pdeathsig only valid on linux system
-	cmd.SysProcAttr.Pdeathsig = syscall.SIGUSR1
+	//
+	// cmd.SysProcAttr.Pdeathsig = syscall.SIGUSR1
 
 	cmd.Stderr = t.logfile
 	cmd.Stdout = t.logfile

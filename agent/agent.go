@@ -343,6 +343,38 @@ quit:
 	log.Warning("receive quit chan, quit CheckTimeoutLoop")
 }
 
+func (agent *Agent) UpdateSingleJobById(id int64) {
+	newcj, err := agent.store.GetJobById(id)
+	if err != nil || newcj == nil {
+		log.Warning("UpdateSingleJobById FAILED ", id, err)
+		return
+	}
+
+	agent.Lock.Lock()
+	defer agent.Lock.Unlock()
+
+	if oldcj, ok := agent.Jobs[id]; ok {
+		log.Debug("we will update cronjob")
+		log.Debug("oldcj:", oldcj)
+		log.Debug("newcj:", newcj)
+		oldcj.Name = newcj.Name
+		oldcj.CreateUser = newcj.CreateUser
+		oldcj.ExecutorFlags = newcj.ExecutorFlags
+		oldcj.Executor = newcj.Executor
+		oldcj.Runner = newcj.Runner
+		oldcj.Timeout = newcj.Timeout
+		oldcj.OnTimeoutTrigger = newcj.OnTimeoutTrigger
+		oldcj.Disabled = newcj.Disabled
+		oldcj.Schedule = newcj.Schedule
+		oldcj.WebHookUrl = newcj.WebHookUrl
+		oldcj.MsgFilter = newcj.MsgFilter
+		oldcj.Signature = newcj.Signature
+		oldcj.CreateAt = newcj.CreateAt
+		return
+	}
+	log.Warning("UpdateSingleJobById not found id: ", id)
+}
+
 // compare and change cronJob from store
 // 1.if cronjob not exists in cjs, we suppose cronjob hase deleted
 // 2.if cronjob's create_at changed ,we will fill old cj with new cj
@@ -368,23 +400,22 @@ func (agent *Agent) CompareAndChange(cjs []*CronJob) {
 	for _, newcj := range cjs {
 		if oldcj, ok := agent.Jobs[newcj.Id]; ok {
 			//find job , compare CreateAt
-			if newcj.CreateAt > oldcj.CreateAt {
-				log.Warning("cron job changed for id: ", newcj.Id)
-				oldcj.Name = newcj.Name
-				oldcj.CreateUser = newcj.CreateUser
-				oldcj.ExecutorFlags = newcj.ExecutorFlags
-				oldcj.Executor = newcj.Executor
-				oldcj.Runner = newcj.Runner
-				oldcj.Timeout = newcj.Timeout
-				oldcj.OnTimeoutTrigger = newcj.OnTimeoutTrigger
-				oldcj.Disabled = newcj.Disabled
-				oldcj.Schedule = newcj.Schedule
-				oldcj.WebHookUrl = newcj.WebHookUrl
-				oldcj.MsgFilter = newcj.MsgFilter
-			} else if newcj.CreateAt < oldcj.CreateAt {
-				// Alert email ,maybe phone
-				log.Warningf("Agent's Jobs:%d CreateAt greate than Store's Jobs:%d, we don't expect this.", oldcj.CreateAt, newcj.CreateAt)
-			}
+			log.Debug("cron job may changed for id: ", newcj.Id)
+			log.Debug("oldcj:", oldcj)
+			log.Debug("newcj:", newcj)
+			oldcj.Name = newcj.Name
+			oldcj.CreateUser = newcj.CreateUser
+			oldcj.ExecutorFlags = newcj.ExecutorFlags
+			oldcj.Executor = newcj.Executor
+			oldcj.Runner = newcj.Runner
+			oldcj.Timeout = newcj.Timeout
+			oldcj.OnTimeoutTrigger = newcj.OnTimeoutTrigger
+			oldcj.Disabled = newcj.Disabled
+			oldcj.Schedule = newcj.Schedule
+			oldcj.WebHookUrl = newcj.WebHookUrl
+			oldcj.MsgFilter = newcj.MsgFilter
+			oldcj.Signature = newcj.Signature
+			oldcj.CreateAt = newcj.CreateAt
 
 		} else {
 			// not find, just append newcj to Jobs map
@@ -399,7 +430,7 @@ func (agent *Agent) CompareAndChange(cjs []*CronJob) {
 
 // every 5 min, agent get jobs from store, check if job changed
 func (agent *Agent) CheckCronJobChangeLoop() {
-	ticker := time.NewTicker(300 * time.Second)
+	ticker := time.NewTicker(60 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
@@ -417,76 +448,6 @@ func (agent *Agent) CheckCronJobChangeLoop() {
 quit:
 	ticker.Stop()
 	log.Warning("receive quit chan, quit CheckCronJobChangeLoop")
-}
-
-// process task status
-// todo: send msg to queue
-func (agent *Agent) HandleStatusLoop() {
-	for {
-		select {
-		case s := <-agent.JobStatusChan:
-			s.TaskPtr.ExecDuration = s.CreateAt - s.TaskPtr.ExecAt
-
-			if s.Status == StatusRunning && s.Command != nil {
-				agent.Lock.Lock()
-				agent.Process[s.TaskPtr.TaskId] = s.Command.Process
-				agent.Lock.Unlock()
-
-				s.TaskPtr.Job.LastExecAt = s.CreateAt
-				s.TaskPtr.Job.LastTaskId = s.TaskPtr.TaskId
-				s.TaskPtr.Job.LastStatus = JobRunning
-
-				log.Debug("Task running : ", s.TaskPtr.TaskId, s.TaskPtr.Job.Name)
-			} else if s.Status == StatusSuccess && s.Command != nil {
-				agent.Lock.Lock()
-				s.TaskPtr.Job.LastSuccessAt = s.CreateAt
-				s.TaskPtr.Job.LastTaskId = s.TaskPtr.TaskId
-				if agent.Running[s.TaskPtr.JobId].Status == StatusTimeout {
-					s.TaskPtr.Job.LastStatus = JobTimeout
-				} else {
-					s.TaskPtr.Job.LastStatus = JobSuccess
-				}
-				delete(agent.Process, s.TaskPtr.TaskId)
-				delete(agent.Running, s.TaskPtr.JobId)
-				agent.Lock.Unlock()
-
-				log.Warning("Task success : ", s.TaskPtr.TaskId, s.TaskPtr.Job.Name, s.TaskPtr.ExecDuration)
-			} else if s.Status == StatusTimeout {
-				agent.Lock.Lock()
-				if s.TaskPtr.Job.OnTimeout() == TriggerKill {
-					delete(agent.Process, s.TaskPtr.TaskId)
-				}
-				agent.Running[s.TaskPtr.JobId].Status = StatusTimeout
-				agent.Lock.Unlock()
-				s.TaskPtr.Job.LastErrAt = s.CreateAt
-				s.TaskPtr.Job.LastTaskId = s.TaskPtr.TaskId
-				log.Warning("Task timeout : ", s.TaskPtr.TaskId, s.TaskPtr.Job.Name, s.Err.Error())
-			} else if s.Status == StatusKilled {
-				agent.Lock.Lock()
-				delete(agent.Process, s.TaskPtr.TaskId)
-				delete(agent.Running, s.TaskPtr.JobId)
-				agent.Lock.Unlock()
-				s.TaskPtr.Job.LastErrAt = s.CreateAt
-				s.TaskPtr.Job.LastTaskId = s.TaskPtr.TaskId
-				s.TaskPtr.Job.LastStatus = JobKilled
-				log.Warning("Task Killed : ", s.TaskPtr.TaskId, s.TaskPtr.Job.Name, s.Err.Error())
-			} else {
-				agent.Lock.Lock()
-				delete(agent.Process, s.TaskPtr.TaskId)
-				delete(agent.Running, s.TaskPtr.JobId)
-				agent.Lock.Unlock()
-				s.TaskPtr.Job.LastErrAt = s.CreateAt
-				s.TaskPtr.Job.LastTaskId = s.TaskPtr.TaskId
-				s.TaskPtr.Job.LastStatus = JobFail
-				log.Warning("Task failed : ", s.TaskPtr.TaskId, s.TaskPtr.Job.Name, s.Err.Error())
-			}
-
-		case <-agent.StatusLoopQuitChan:
-			goto quit
-		}
-	}
-quit:
-	log.Warning("receive StatusLoopQuitChan chan, quit HandleStatusLoop")
 }
 
 func (agent *Agent) SaveCronDataLoop() {
