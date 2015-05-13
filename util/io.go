@@ -100,7 +100,7 @@ func GetFileContent(filename string, retain int64, direction int) string {
 func PostUrl(url string, form url.Values) error {
 	_, err := http.PostForm(url, form)
 	if err != nil {
-		log.Warning("post url failed ", url, form)
+		// log.Warning("post url failed ", url, form)
 		return err
 	}
 	return nil

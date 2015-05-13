@@ -371,6 +371,11 @@ func (agent *Agent) UpdateSingleJobById(id int64) {
 		oldcj.Signature = newcj.Signature
 		oldcj.CreateAt = newcj.CreateAt
 		return
+	} else {
+		log.Debug("we will add  cronjob")
+		log.Debug("newcj:", newcj)
+		agent.Jobs[id] = newcj
+		return
 	}
 	log.Warning("UpdateSingleJobById not found id: ", id)
 }
@@ -430,7 +435,7 @@ func (agent *Agent) CompareAndChange(cjs []*CronJob) {
 
 // every 5 min, agent get jobs from store, check if job changed
 func (agent *Agent) CheckCronJobChangeLoop() {
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(3600 * time.Second)
 	for {
 		select {
 		case <-ticker.C:

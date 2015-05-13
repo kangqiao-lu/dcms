@@ -151,7 +151,7 @@ func (t *Task) Exec(agent *Agent) {
 	cmd.SysProcAttr.Setsid = true
 	// Pdeathsig only valid on linux system
 	//
-	// cmd.SysProcAttr.Pdeathsig = syscall.SIGUSR1
+	cmd.SysProcAttr.Pdeathsig = syscall.SIGUSR1
 
 	cmd.Stderr = t.logfile
 	cmd.Stdout = t.logfile

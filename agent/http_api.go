@@ -17,17 +17,15 @@ type Server struct {
 	DCMS *Agent
 }
 
-//  "/pre/getsecbyid?sec=xxxx&preid=xxxx"
-// "/pre/:preid/sec/:secid"
-// "/sec/:secid?pre=preid"
 func (s *Server) Serve() {
 	log.Info("start Server http api")
 	m := martini.Classic()
-	m.Get("/", TestApi)
+
 	m.Get("/jobs", s.GetAllJobs)
 	m.Get("/jobs/:jobid", s.GetJobById)
 	m.Delete("/jobs/:jobid", s.DeleteJobById)
 	m.Put("/jobs/:jobid", s.UpdateJobById)
+	m.Post("/jobs/:jobid", s.PostJobById)
 
 	m.Get("/tasks", s.GetAllTasks)
 	m.Get("/tasks/:taskid", s.GetTaskById)
@@ -35,9 +33,6 @@ func (s *Server) Serve() {
 	m.RunOnAddr(fmt.Sprintf(":%s", s.DCMS.Conf.HttpPort))
 }
 
-func TestApi() (int, string) {
-	return 201, "test ok "
-}
 func (s *Server) GetJobById(p martini.Params) (int, string) {
 	log.Debug("Server dcms http_api GetJobById")
 	jobid, ok := p["jobid"]
@@ -52,6 +47,22 @@ func (s *Server) GetJobById(p martini.Params) (int, string) {
 		return responseSuccess(job)
 	}
 	return responseError(404, fmt.Sprintf("Job:%s not fuound", jobid))
+}
+
+func (s *Server) PostJobById(p martini.Params) (int, string) {
+	log.Debug("Server dcms http_api PostJobById")
+	jobid, ok := p["jobid"]
+	if !ok {
+		return responseError(500, "PostJobById without jobid")
+	}
+	id, err := strconv.Atoi(jobid)
+	if err != nil {
+		return responseError(500, fmt.Sprintf("convert string:%s to int failed", jobid))
+	}
+
+	go s.DCMS.UpdateSingleJobById(int64(id))
+
+	return responseSuccess(fmt.Sprintf("Job:%s will be added async", jobid))
 }
 
 func (s *Server) UpdateJobById(p martini.Params) (int, string) {
