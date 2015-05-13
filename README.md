@@ -27,14 +27,17 @@ crontab集中管理平台和分布式任务调度平台
 * 支持远程`kill`正在运行任务.
 * 支持`rest-api`管理当前`agent`任务.
 * 支持对`crontab`的输出进行关键词过滤, 如`fatal``error``fail`等, 以管道符`|`分隔.
+* 任务可持久化到本机, 对中心DB依赖小, 定时同步校验.
 
 约束:
 * 任务脚本必须有可执行权限, 即 `chmod u+x exec_file`.
 * 任务不允许以`root`运行, 必须是普通用户.
+* 执行文件需使用方自行同步, `agent`校验签名, 匹配后执行.
 
 规划:
 * 实现基于`mesos`的分布式任务调度.
 * 简单开箱即用的`dashboard`管理界面.
+* 由于部份系统不支持`SysProcAttr.Pdeathsig`, 暂时仅支持linux.
 
 
 
@@ -65,6 +68,7 @@ crontab集中管理平台和分布式任务调度平台
 运行
 ===
 
+查看选项
 	bin/dcms-agent  -h
 
 	Usage of bin/dcms-agent:
@@ -84,6 +88,7 @@ crontab集中管理平台和分布式任务调度平台
 	  -verbose		日志级别, 用于调戏
 	  -work_dir		工作目录, 建义好好归划
 
+运行agent
 
 	导入表结构
 	mysql -uroot -hlocalhost < agent/agent.sql
@@ -117,9 +122,21 @@ crontab集中管理平台和分布式任务调度平台
 
 	insert into dcms_cronjob (name, create_user, executor, executor_flags, signature,runner, timeout, timeout_trigger, disabled, schedule, hook, msg_filter, create_at) values ("jobtestname","dongzerun","/home/dcms/test.sh","","88eb1e5ec830e60ac77fdf869962b928","dzr",30,0,0,"*/1 * * * *", "http://testwebhook.com","fatal|failed|error",unix_timestamp());
 
+	插入后生成的自增ID, 即为job_id
+
 
 	将`agent`机器以`hostname`和`job_id`进行关联注册
 	insert into dcms_agent2job (host, job_id) values ('localhost', cronjob_pk_id);
+
+手工同步任务
+
+	curl -X "POST" http://127.0.0.1:8001/jobs/1
+
+	执行后输出
+	{
+   		"data": "Job:1 will be added async",
+   		"ret": 0
+ 	}
 
 
 
