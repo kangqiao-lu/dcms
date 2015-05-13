@@ -13,7 +13,7 @@ import (
 
 var (
 	dbtype    = flag.String("dbtype", "mysql", "store cron job db type")
-	db        = flag.String("db", "root:root@tcp(locahost)/dcms", "mysql url used for jobs")
+	db        = flag.String("db", "root:root@tcp(localhost)/dcms", "mysql url used for jobs")
 	port      = flag.String("port", "8001", "management port by http protocol")
 	work_dir  = flag.String("work_dir", "/tmp", "work dir, used to save log file etc..")
 	quit_time = flag.Int64("quit_time", 3600, "when agent recevie, we wait quit_time sec for all TASK FINISHED")
