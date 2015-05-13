@@ -33,11 +33,12 @@ crontab集中管理平台和分布式任务调度平台
 * 任务脚本必须有可执行权限, 即 `chmod u+x exec_file`.
 * 任务不允许以`root`运行, 必须是普通用户.
 * 执行文件需使用方自行同步, `agent`校验签名, 匹配后执行.
+* 由于部份系统不支持`SysProcAttr.Pdeathsig`, 暂时仅支持linux.
 
 规划:
 * 实现基于`mesos`的分布式任务调度.
 * 简单开箱即用的`dashboard`管理界面.
-* 由于部份系统不支持`SysProcAttr.Pdeathsig`, 暂时仅支持linux.
+
 
 
 
@@ -129,7 +130,7 @@ crontab集中管理平台和分布式任务调度平台
 	将`agent`机器以`hostname`和`job_id`进行关联注册
 	insert into dcms_agent2job (host, job_id) values ('localhost', cronjob_pk_id);
 
-手工同步任务
+手工同步任务(默认1小时自动同步)
 
 	curl -X "POST" http://127.0.0.1:8001/jobs/1
 
@@ -140,6 +141,39 @@ crontab集中管理平台和分布式任务调度平台
  	}
 
 
+REST-API
+===
 
+获取agent所有任务
+
+	curl http://hostname:8001/jobs
+
+根据任务ID获取任务信息
+
+	curl http://hostname:8001/jobs/job_id
+
+删除给定ID任务
+
+	curl -X "DELETE" http://hostname:8001/jobs/job_id
+
+提交给定ID任务
+
+	curl -X "POST" http://hostname:8001/jobs/job_id
+
+更新给定ID任务
+
+	curl -X "PUT" http://hostname:8001/jobs/job_id
+
+获取当前agent正在运行任务
+
+	curl http://hostname:8001/tasks
+
+获取给定TASK ID运行任务
+
+	curl http://hostname:8001/tasks/task_id
+
+删除给定TASK ID运行任务(kill)
+
+	curl -X "DELETE" http://hostname:8001/tasks/task_id
 
 
