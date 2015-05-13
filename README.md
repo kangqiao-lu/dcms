@@ -87,7 +87,7 @@ crontab集中管理平台和分布式任务调度平台
 	  -dbtype 		存储类型, 当前接口仅实现mysql, 添加新DB类型只要实现接口即可
 	  -port 		rest api 端口, 用于管理及dashboard集成
 	  -quit_time	当接收sigterm信号后, agent等待所有任务退出, quit_time至期后 kill扔然运行进程
-	  -verbose		日志级别, 用于调戏
+	  -verbose		日志级别, 用于调戏(info, debug, warning)
 	  -work_dir		工作目录, 建义好好归划
 
 运行agent
